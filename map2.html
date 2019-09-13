@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html ng-app="demoapp">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body ng-controller="Controller">
+    <leaflet lf-center="map.center" lf-draw="map.drawOptions" tiles="map.tiles" defaults="map.defaults" width="100%" height="50vh"></leaflet>
+</body>
+<script src="http://angular-ui.github.io/ui-leaflet-draw/bower_components/angular/angular.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script src="lib/leaflet.draw-src.js"></script>
+<script src="lib/angular-simple-logger.js"></script>
+<script src="lib/ui-leaflet.js"></script>
+<script src="lib/ui-leaflet-draw.js"></script>
+<link rel="stylesheet" href="lib/leaflet.css" />
+<link rel="stylesheet" href="http://angular-ui.github.io/ui-leaflet-draw/bower_components/leaflet-draw/dist/leaflet.draw.css" />
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+
+<script>
+    'use strict';
+    angular.module("demoapp", ['ui-leaflet'])
+        .controller('Controller', function($scope, leafletDrawEvents, leafletData) {
+            var drawnItems = new L.FeatureGroup();
+
+            var tilesDict = {
+                googleSat: {
+                    url: 'http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',
+                    options: {
+                        maxZoom: 20,
+                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+                    }
+                }
+            };
+
+            angular.extend($scope, {
+                map: {
+                    center: {
+                        lat: -18.84927431758237,
+                        lng: -48.38353157043457,
+                        zoom: 14
+                    },
+                    tiles: tilesDict.googleSat,
+                    drawOptions: {
+                        position: "bottomright",
+                        draw: {
+                            polyline: false,
+                            marker: false,
+                            polygon: {},
+                            circle: {},
+                            rectangle: {}
+                        },
+                        edit: {
+                            featureGroup: drawnItems,
+                            remove: true
+                        }
+                    }
+                }
+            });
+
+            var handle = {
+                created: function(e, leafletEvent, leafletObject, model, modelName) {
+                    if (leafletEvent.layer instanceof L.Circle) {
+                        let cirlceTransformed = transformCircleInPolygon(leafletEvent.layer);
+
+                        if (!layerInsideAnotherLayer(cirlceTransformed) && !layersInsideThisLayer(cirlceTransformed) && !layerOverlay(cirlceTransformed._latlngs))
+                            drawnItems.addLayer(leafletEvent.layer);
+                        else
+                            alert('O seu desenho está invadindo área de outro talhão...');
+                    } else {
+                        if (!layerInsideAnotherLayer(leafletEvent.layer) && !layersInsideThisLayer(leafletEvent.layer) && !layerOverlay(leafletEvent.layer._latlngs))
+                            drawnItems.addLayer(leafletEvent.layer);
+                        else
+                            alert('O seu desenho está invadindo área de outro talhão...');
+                    }
+                },
+                edited: function(arg) {},
+                deleted: function(arg) {},
+                drawstart: function(arg) {},
+                drawstop: function(arg) {},
+                editstart: function(arg) {},
+                editstop: function(arg) {},
+                deletestart: function(arg) {},
+                deletestop: function(arg) {}
+            };
+
+            var drawEvents = leafletDrawEvents.getAvailableEvents();
+            drawEvents.forEach(function(eventName) {
+                $scope.$on('leafletDirectiveDraw.' + eventName, function(e, payload) {
+                    var leafletEvent, leafletObject, model, modelName;
+                    leafletEvent = payload.leafletEvent, leafletObject = payload.leafletObject, model = payload.model,
+                        modelName = payload.modelName;
+                    handle[eventName.replace('draw:', '')](e, leafletEvent, leafletObject, model, modelName);
+                });
+            });
+
+            function layerInsideAnotherLayer(talhao) {
+                let inside = false;
+                drawnItems.eachLayer(function(layer) {
+                    if (layer instanceof L.Circle) {
+                        if (checkPointsInsideCircle(layer, talhao)) {
+                            inside = true;
+                            return;
+                        }
+                    } else {
+                        talhao._latlngs.forEach(element => {
+                            if (isMarkerInsidePolygon(element, layer))
+                                inside = true;
+                        });
+                    }
+                });
+
+                return inside;
+            }
+
+            function layersInsideThisLayer(talhao) {
+                let inside = false;
+
+                drawnItems.eachLayer(function(layer) {
+                    if (layer instanceof L.Circle) {
+                        if (isMarkerInsidePolygon(layer._latlng, talhao)) {
+                            inside = true;
+                            return;
+                        }
+                    } else {
+                        layer._latlngs.forEach(element => {
+                            if (isMarkerInsidePolygon(element, talhao)) {
+                                inside = true;
+                                return;
+                            }
+                        })
+                    }
+                })
+
+                return inside;
+            }
+
+            function layerOverlay(latsLongs) {
+                let latsLongsFormat = [];
+                let inside = false;
+                let i = 0;
+
+                var plgns = [];
+
+                latsLongs.forEach(element => {
+                    latsLongsFormat.push([element.lat, element.lng]);
+                });
+
+                drawnItems.eachLayer(function(layer) {
+                    var ll = [];
+
+                    if (layer instanceof L.Circle) {
+                        var cirlceTransformed = transformCircleInPolygon(layer);
+
+                        cirlceTransformed._latlngs.forEach((element) => {
+                            ll.push([element.lat, element.lng])
+                        })
+
+                        plgns[i] = turf.multiPolygon([
+                            [ll]
+                        ]);
+
+                        i += 1;
+
+
+                    } else {
+                        layer._latlngs.forEach((element) => {
+                            ll.push([element.lat, element.lng])
+                        })
+
+                        plgns[i] = turf.multiPolygon([
+                            [ll]
+                        ]);
+
+                        i += 1;
+                    }
+
+                })
+
+                var p = turf.multiPolygon([
+                    [latsLongsFormat]
+                ]);
+
+                plgns.forEach(element => {
+                    if (turf.booleanOverlap(p, element))
+                        inside = true;
+
+                });
+
+                return inside;
+            }
+
+            //https://stackoverflow.com/questions/31790344/determine-if-a-point-reside-inside-a-leaflet-polygon
+            function isMarkerInsidePolygon(marker, poly) {
+                var polyPoints = poly.getLatLngs();
+                var x = marker.lat,
+                    y = marker.lng;
+
+                var inside = false;
+                for (var i = 0, j = polyPoints.length - 1; i < polyPoints.length; j = i++) {
+                    var xi = polyPoints[i].lat,
+                        yi = polyPoints[i].lng;
+                    var xj = polyPoints[j].lat,
+                        yj = polyPoints[j].lng;
+
+                    var intersect = ((yi > y) != (yj > y)) &&
+                        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+
+                return inside;
+            };
+
+            //https://stackoverflow.com/questions/28742112/unable-to-display-only-the-points-within-a-specific-range-circle-using-the-ge
+            function checkPointsInsideCircle(circle, polygon) {
+                let pointsInsideCircle = false;
+
+                polygon._latlngs.forEach(element => {
+                    if (circle.getLatLng().distanceTo([element.lat, element.lng]) < circle.getRadius())
+                        pointsInsideCircle = true;
+                })
+
+                return pointsInsideCircle;
+            }
+
+            function transformCircleInPolygon(circle) {
+                let center = [circle._latlng.lng, circle._latlng.lat];
+                let radius = circle._mRadius / 1000;
+                let options = {
+                    steps: 20
+                };
+
+                let newTurfPolygon = turf.circle(center, radius, options)
+                let polygonConverted = convertPolygon(newTurfPolygon)
+
+                return polygonConverted;
+            }
+
+            function convertPolygon(turfPolygon) {
+                let polygonConverted;
+                let latsLongs = [];
+
+                turfPolygon.geometry.coordinates.forEach((coordinates) => {
+                    coordinates.forEach(coordinate => {
+                        latsLongs.push([coordinate[1], coordinate[0]]);
+                    })
+                })
+
+                polygonConverted = new L.Polygon(latsLongs);
+
+                return polygonConverted;
+            }
+
+            //{lat: -18.845943947206663, lng: -48.38644981384277}
+            //_mRadius: 693.4884724782733
+            //_radius: 77
+
+            /* var center = [-48.38644981384277, -18.845943947206663];
+             var radius = 693.4884724782733 / 1000;
+             var options = {
+                 steps: 1000,
+                 units: 'kilometers',
+                 properties: {
+                     foo: 'bar'
+                 }
+             };
+             var polygon = turf.circle(center, radius, options);*/
+
+            /*leafletData.getMap('mapa').then(function(map) {
+                console.log(map);
+
+                L.geoJson(polygon, {
+                    style: function(feature) {
+                        return {
+                            color: "red"
+                        };
+                    }
+                }).addTo(map);
+            });*/
+        });
+</script>
+
+</html>

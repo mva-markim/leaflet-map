@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html ng-app="demoapp">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body ng-controller="Controller">
+    <leaflet lf-center="map.center" lf-draw="map.drawOptions" tiles="map.tiles" defaults="map.defaults" width="100%" height="50vh"></leaflet>
+
+</body>
+<script src="http://angular-ui.github.io/ui-leaflet-draw/bower_components/angular/angular.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script src="lib/leaflet.draw-src.js"></script>
+<script src="lib/angular-simple-logger.js"></script>
+<script src="lib/ui-leaflet.js"></script>
+<script src="lib/ui-leaflet-draw.js"></script>
+<link rel="stylesheet" href="lib/leaflet.css" />
+<link rel="stylesheet" href="http://angular-ui.github.io/ui-leaflet-draw/bower_components/leaflet-draw/dist/leaflet.draw.css" />
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+
+<script>
+    'use strict';
+    angular.module("demoapp", ['ui-leaflet'])
+        .controller('Controller', function($scope, leafletDrawEvents) {
+
+            // Talhões
+            var polygon = new L.Polygon([
+                [-18.83985163529765, -48.40473175048828],
+                [-18.842694741699475, -48.40129852294921],
+                [-18.843750740387105, -48.4017276763916],
+                [-18.84431935231386, -48.39923858642578],
+                [-18.8460251765386, -48.39855194091797],
+                [-18.85114254520101, -48.400869369506836],
+                [-18.85934625504445, -48.402414321899414],
+                [-18.859996036697705, -48.40129852294921],
+                [-18.85885891715262, -48.40009689331055],
+                [-18.856097309022207, -48.40001106262207],
+                [-18.851873585129493, -48.39872360229492],
+                [-18.847812211896056, -48.39554786682128],
+                [-18.845943947206663, -48.39529037475586],
+                [-18.843750740387105, -48.396148681640625],
+                [-18.84261351075609, -48.39520454406738],
+                [-18.840014099817438, -48.39125633239746],
+                [-18.83660231189468, -48.38627815246582],
+                [-18.83514009585326, -48.38696479797363],
+                [-18.833759102348257, -48.38602066040038],
+                [-18.829209866977735, -48.398637771606445]
+            ], {
+                weight: 3,
+                color: '#16B208',
+                fillOpacity: 0.3,
+                opacity: 1
+            });
+
+            var polygon2 = new L.Polygon([
+                [-18.846268864298533, -48.370656967163086],
+                [-18.85268584798153, -48.37657928466797],
+                [-18.851304998793672, -48.378639221191406],
+                [-18.851873585129493, -48.38181495666504],
+                [-18.85122377201699, -48.38275909423828],
+                [-18.84033902838546, -48.36902618408203],
+                [-18.841882430497044, -48.367910385131836]
+            ], {
+                weight: 3,
+                color: '#E2321A',
+                fillOpacity: 0.3,
+                opacity: 1
+            });
+
+            var rectangle = new L.Rectangle([
+                [-18.838876844878076, -48.38404655456542],
+                [-18.837008480758143, -48.38404655456542],
+                [-18.837008480758143, -48.371944427490234],
+                [-18.838876844878076, -48.371944427490234]
+            ], {
+                weight: 3,
+                color: '#FA863B',
+                fillOpacity: 0.3,
+                opacity: 1
+            })
+
+
+            var rectangle2 = new L.Rectangle([
+                [-18.84066395632474, -48.379154205322266],
+                [-18.835708736937548, -48.379154205322266],
+                [-18.835708736937548, -48.37580680847168],
+                [-18.84066395632474, -48.37580680847168]
+            ], {
+                weight: 3,
+                color: '#FA863B',
+                fillOpacity: 0.3,
+                opacity: 1
+            })
+
+            var circle = new L.Circle([-18.845943947206663, -48.38644981384277], 524.4013877010652, {
+                weight: 3,
+                color: '#FFE800',
+                fillOpacity: 0.3,
+                opacity: 1
+            })
+
+            var circle2 = new L.Circle([-18.85577241095925, -48.379154205322266], 491.9276723740898, {
+                weight: 3,
+                color: '#FFE800',
+                fillOpacity: 0.3,
+                opacity: 1
+            })
+
+            var circle3 = new L.Circle([-18.854960163049142, -48.370227813720696], 397.01817139125444, {
+                weight: 3,
+                color: '#FFE800',
+                fillOpacity: 0.3,
+                opacity: 1
+            })
+
+
+
+            var drawnItems = new L.FeatureGroup();
+
+            var tilesDict = {
+                googleSat: {
+                    url: 'http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',
+                    options: {
+                        maxZoom: 20,
+                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+                    }
+                }
+            };
+
+            angular.extend($scope, {
+                map: {
+                    center: {
+                        lat: -18.84927431758237,
+                        lng: -48.38353157043457,
+                        zoom: 14
+                    },
+                    tiles: tilesDict.googleSat,
+                    drawOptions: {
+                        position: "bottomright",
+                        draw: {
+                            polyline: false,
+                            polygon: {},
+                            circle: {},
+                            marker: false,
+                            rectangle: {}
+                        },
+                        edit: {
+                            featureGroup: drawnItems,
+                            remove: true
+                        }
+                    }
+                }
+            });
+
+            var bounds = [{
+                lat: -18.86418574226669,
+                lng: -48.337490580444374
+            }, {
+                lat: -18.86733973484467,
+                lng: -48.34082362853999
+            }];
+
+            var handle = {
+                created: function(e, leafletEvent, leafletObject, model, modelName) {
+                    // console.log('Dentro do Polygon: ' + polygon.getBounds().contains(leafletEvent.layer.getBounds()));
+                    //var t = leafletEvent.layer.toGeoJSON();
+                    /*console.log(leafletEvent.layer._getLatRadius());
+                    console.log(leafletEvent.layer._getLngRadius());*/
+
+                    // console.log(leafletEvent.layer.getRadius());
+
+
+
+                    if (leafletEvent.layer._latlng) {
+                        //drawnItems.addLayer(leafletEvent.layer);
+                        if (teste(leafletEvent.layer))
+                            alert('O seu desenho está invadindo área de outro talhão...');
+                        else
+                            drawnItems.addLayer(leafletEvent.layer);
+                    } else {
+                        if (!layerInsideAnotherLayer(leafletEvent.layer) && !layersInsideThisLayer(leafletEvent.layer) && !layerOverlay(leafletEvent.layer._latlngs))
+                            drawnItems.addLayer(leafletEvent.layer);
+                        else
+                            alert('O seu desenho está invadindo área de outro talhão...');
+                    }
+                },
+                edited: function(arg) {},
+                deleted: function(arg) {},
+                drawstart: function(arg) {},
+                drawstop: function(arg) {},
+                editstart: function(arg) {},
+                editstop: function(arg) {},
+                deletestart: function(arg) {},
+                deletestop: function(arg) {}
+            };
+
+            var drawEvents = leafletDrawEvents.getAvailableEvents();
+            drawEvents.forEach(function(eventName) {
+                $scope.$on('leafletDirectiveDraw.' + eventName, function(e, payload) {
+                    //{leafletEvent, leafletObject, model, modelName} = payload
+                    var leafletEvent, leafletObject, model, modelName; //destructuring not supported by chrome yet :(
+                    leafletEvent = payload.leafletEvent, leafletObject = payload.leafletObject, model = payload.model,
+                        modelName = payload.modelName;
+                    handle[eventName.replace('draw:', '')](e, leafletEvent, leafletObject, model, modelName);
+                });
+            });
+
+            drawnItems.on("click", function(event) {
+                console.log(event.layer);
+
+            });
+
+            drawLayersTalhoes();
+
+            function drawLayersTalhoes() {
+                drawnItems.addLayer(polygon);
+                drawnItems.addLayer(polygon2);
+                drawnItems.addLayer(rectangle);
+                //drawnItems.addLayer(rectangle2);
+
+                // drawnItems.addLayer(circle);
+                // drawnItems.addLayer(circle2);
+                // drawnItems.addLayer(circle3);
+            }
+
+            var multiPoly = turf.multiPolygon([
+                [
+                    [
+                        [-18.838876844878076, -48.38404655456542],
+                        [-18.837008480758143, -48.38404655456542],
+                        [-18.837008480758143, -48.371944427490234],
+                        [-18.838876844878076, -48.371944427490234]
+                    ]
+                ]
+            ]);
+
+            var multiPoly2 = turf.multiPolygon([
+                [
+                    [
+                        [-18.84066395632474, -48.379154205322266],
+                        [-18.835708736937548, -48.379154205322266],
+                        [-18.835708736937548, -48.37580680847168],
+                        [-18.84066395632474, -48.37580680847168]
+                    ]
+                ]
+            ]);
+
+
+            var multiPoly3 = turf.multiPolygon([
+                [
+                    [
+                        [-18.83985163529765, -48.40473175048828],
+                        [-18.842694741699475, -48.40129852294921],
+                        [-18.843750740387105, -48.4017276763916],
+                        [-18.84431935231386, -48.39923858642578],
+                        [-18.8460251765386, -48.39855194091797],
+                        [-18.85114254520101, -48.400869369506836],
+                        [-18.85934625504445, -48.402414321899414],
+                        [-18.859996036697705, -48.40129852294921],
+                        [-18.85885891715262, -48.40009689331055],
+                        [-18.856097309022207, -48.40001106262207],
+                        [-18.851873585129493, -48.39872360229492],
+                        [-18.847812211896056, -48.39554786682128],
+                        [-18.845943947206663, -48.39529037475586],
+                        [-18.843750740387105, -48.396148681640625],
+                        [-18.84261351075609, -48.39520454406738],
+                        [-18.840014099817438, -48.39125633239746],
+                        [-18.83660231189468, -48.38627815246582],
+                        [-18.83514009585326, -48.38696479797363],
+                        [-18.833759102348257, -48.38602066040038],
+                        [-18.829209866977735, -48.398637771606445]
+                    ]
+                ]
+            ]);
+
+
+            var multiPoly4 = turf.multiPolygon([
+                [
+                    [
+                        [-18.846268864298533, -48.370656967163086],
+                        [-18.85268584798153, -48.37657928466797],
+                        [-18.851304998793672, -48.378639221191406],
+                        [-18.851873585129493, -48.38181495666504],
+                        [-18.85122377201699, -48.38275909423828],
+                        [-18.84033902838546, -48.36902618408203],
+                        [-18.841882430497044, -48.367910385131836]
+                    ]
+                ]
+            ]);
+
+            function layerInsideAnotherLayer(talhao) {
+                let inside = false;
+                drawnItems.eachLayer(function(layer) {
+                    talhao._latlngs.forEach(element => {
+                        if (isMarkerInsidePolygon(element, layer))
+                            inside = true;
+                    });
+                });
+
+                return inside;
+            }
+
+            function layersInsideThisLayer(talhao) {
+                let inside = false;
+
+                drawnItems.eachLayer(function(layer) {
+                    layer._latlngs.forEach(element => {
+                        if (isMarkerInsidePolygon(element, talhao))
+                            inside = true;
+                    })
+                })
+
+                return inside;
+            }
+
+            function layerOverlay(latsLongs) {
+                let latsLongsFormat = [];
+                let inside = false;
+
+                latsLongs.forEach(element => {
+                    latsLongsFormat.push([element.lat, element.lng]);
+                });
+
+                var p = turf.multiPolygon([
+                    [latsLongsFormat]
+                ]);
+
+                if (turf.booleanOverlap(p, multiPoly) || turf.booleanOverlap(p, multiPoly2) || turf.booleanOverlap(p, multiPoly3) || turf.booleanOverlap(p, multiPoly4))
+                    inside = true;
+
+                return inside;
+            }
+
+            /*
+                https://stackoverflow.com/questions/31790344/determine-if-a-point-reside-inside-a-leaflet-polygon
+            */
+
+            function isMarkerInsidePolygon(marker, poly) {
+                var polyPoints = poly.getLatLngs();
+                var x = marker.lat,
+                    y = marker.lng;
+
+                var inside = false;
+                for (var i = 0, j = polyPoints.length - 1; i < polyPoints.length; j = i++) {
+                    var xi = polyPoints[i].lat,
+                        yi = polyPoints[i].lng;
+                    var xj = polyPoints[j].lat,
+                        yj = polyPoints[j].lng;
+
+                    var intersect = ((yi > y) != (yj > y)) &&
+                        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+
+                return inside;
+            };
+
+
+            function teste(meuCirculo) {
+                let invadiu = false;
+
+                //https://stackoverflow.com/questions/28742112/unable-to-display-only-the-points-within-a-specific-range-circle-using-the-ge
+
+                drawnItems.eachLayer(function(layer) {
+                    layer._latlngs.forEach(element => {
+                        if (meuCirculo.getLatLng().distanceTo([element.lat, element.lng]) < meuCirculo.getRadius())
+                            invadiu = true;
+                    })
+                })
+
+                console.log('Invadiu: ' + invadiu);
+
+                return invadiu;
+
+            }
+        });
+</script>
+
+</html>
