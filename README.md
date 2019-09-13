@@ -1,2 +1,3 @@
 # leaflet-map
-Layers overlaps
+ 
+Intersection not allow
